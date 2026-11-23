@@ -84,9 +84,33 @@ function renderGoal(){const mins=Math.floor(getTodayStudy()/60),goal=getGoal(),p
 function formatTime(sec){const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`}
 function renderTimer(){$('timerDisplay').textContent=formatTime(timerSeconds)}
 $('saveGoal').addEventListener('click',()=>{const n=Math.max(5,Math.min(600,Number($('goalInput').value)||20));localStorage.setItem('nihongo-goal',n);renderGoal()});
-$('timerStart').addEventListener('click',()=>{if(timerRunning)return;timerRunning=true;timerInterval=setInterval(()=>{timerSeconds++;setTodayStudy(getTodayStudy()+1);if(timerSeconds%60===0)renderGoal();renderTimer()},1000)});
-$('timerPause').addEventListener('click',()=>{if(!timerRunning)return;clearInterval(timerInterval);timerInterval=null;timerRunning=false;renderGoal();renderTimer()});
-$('timerReset').addEventListener('click',()=>{if(timerRunning){clearInterval(timerInterval);timerInterval=null;timerRunning=false;}timerSeconds=0;renderTimer();renderGoal()});
+function stopStudyTimer(){
+  if(timerInterval!==null){clearInterval(timerInterval);timerInterval=null;}
+  timerRunning=false;
+}
+$('timerStart').addEventListener('click',()=>{
+  if(timerRunning)return;
+  timerRunning=true;
+  timerInterval=setInterval(()=>{
+    timerSeconds+=1;
+    setTodayStudy(getTodayStudy()+1);
+    if(timerSeconds%5===0)renderGoal();
+    renderTimer();
+  },1000);
+});
+$('timerPause').addEventListener('click',()=>{
+  // Jeda menghentikan interval saja; waktu sesi tidak dihapus.
+  stopStudyTimer();
+  renderTimer();
+  renderGoal();
+});
+$('timerReset').addEventListener('click',()=>{
+  // Reset mengakhiri sesi dan mengosongkan tampilan timer, bukan progres harian.
+  stopStudyTimer();
+  timerSeconds=0;
+  renderTimer();
+  renderGoal();
+});
 renderGoal();renderTimer();
 
 // Writing canvas
@@ -118,7 +142,7 @@ $('startMatching').addEventListener('click',()=>{startMatching();openPanel('matc
 function getHistory(){return readStore('nihongo-history',[])}
 function renderStats(){const h=getHistory();$('statAttempts').textContent=h.length;$('statBest').textContent=h.length?Math.max(...h.map(x=>x.score)):0;$('statAverage').textContent=h.length?Math.round(h.reduce((s,x)=>s+x.score,0)/h.length):0;$('statCorrect').textContent=h.reduce((s,x)=>s+x.correct,0);$('quizHistory').innerHTML=h.length? h.slice(0,5).map(x=>`<div class="history-item"><span>${escapeHTML(x.date)}</span><strong>${x.script?x.script.toUpperCase()+' · ':''}${x.score}/100 · ${x.correct}/${x.total||20} benar</strong></div>`).join(''):'<p class="muted">Belum ada riwayat kuis.</p>'}
 function startQuiz(script){if(!script){$('quizSetup').classList.remove('hidden');$('quizContent').classList.add('hidden');$('quizResult').classList.add('hidden');openPanel('quizPanel');return}quizScript=script;const source=script==='hiragana'?hiragana:katakana;quizQuestions=shuffle(source.map(x=>({char:x[0],romaji:x[1],script}))).slice(0,10);quizIndex=0;quizScore=0;quizLocked=false;$('quizSetup').classList.add('hidden');$('quizContent').classList.remove('hidden');$('quizResult').classList.add('hidden');$('quizPrompt').textContent=`Pilih romaji yang benar untuk huruf ${script==='hiragana'?'Hiragana':'Katakana'} berikut.`;renderQuiz();openPanel('quizPanel')}
-function renderQuiz(){const q=quizQuestions[quizIndex];const source=quizScript==='hiragana'?hiragana:katakana;$('quizCounter').textContent=`${quizScript==='hiragana'?'Hiragana':'Katakana'} · Soal ${quizIndex+1}/10`;$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizCharacter').textContent=q.char;$('quizFeedback').textContent='';$('quizStatus').textContent='Pilih satu jawaban';$('quizNext').disabled=true;$('quizNext').textContent=quizIndex===9?'Lihat Hasil':'Berikutnya';const opts=shuffle([q.romaji,...shuffle(source.filter(x=>x[1]!==q.romaji)).slice(0,3).map(x=>x[1])]);$('quizOptions').innerHTML=opts.map(o=>`<button class="option-btn" data-answer="${o}">${o}</button>`).join('');document.querySelectorAll('#quizOptions button').forEach(b=>b.addEventListener('click',()=>{if(quizLocked)return;quizLocked=true;const ok=b.dataset.answer===q.romaji;if(ok)quizScore+=10;b.classList.add(ok?'correct':'wrong');if(!ok)document.querySelector(`#quizOptions [data-answer="${q.romaji}"]`).classList.add('correct');$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizFeedback').textContent=ok?'Benar! +10 poin':`Jawaban yang benar adalah ${q.romaji}`;$('quizStatus').textContent=ok?'Jawaban benar':'Jawaban belum tepat';$('quizNext').disabled=false}))}
+function renderQuiz(){const q=quizQuestions[quizIndex];const source=quizScript==='hiragana'?hiragana:katakana;$('quizCounter').textContent=`${quizScript==='hiragana'?'Hiragana':'Katakana'} · Soal ${quizIndex+1}/10`;$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizCharacter').textContent=q.char;$('quizFeedback').textContent='';$('quizStatus').textContent='Pilih satu jawaban';$('quizNext').disabled=true;$('quizNext').textContent=quizIndex===9?'Lihat Hasil':'Berikutnya';const opts=shuffle([q.romaji,...shuffle(source.filter(x=>x[1]!==q.romaji)).slice(0,3).map(x=>x[1])]);$('quizOptions').innerHTML=opts.map(o=>`<button class="option-btn" data-answer="${o}">${o}</button>`).join('');document.querySelectorAll('#quizOptions button').forEach(b=>b.addEventListener('click',()=>{if(quizLocked)return;quizLocked=true;const ok=b.dataset.answer===q.romaji;if(ok)quizScore+=10;b.classList.add(ok?'correct':'wrong');if(!ok)document.querySelector(`#quizOptions [data-answer="${q.romaji}"]`).classList.add('correct');$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizFeedback').textContent=ok?'Benar! +10 poin':`Belum tepat. Huruf ${q.char} dibaca ${q.romaji}. Hafalkan pasangan huruf dan bunyi ini, lalu coba lagi.`;$('quizStatus').textContent=ok?'Jawaban benar':'Jawaban belum tepat';$('quizNext').disabled=false}))}
 function finishQuiz(){const h=getHistory();h.unshift({date:new Date().toLocaleString('id-ID'),score:quizScore,correct:quizScore/10,total:10,script:quizScript});writeStore('nihongo-history',h.slice(0,30));$('quizContent').classList.add('hidden');$('quizResult').classList.remove('hidden');$('quizResult').innerHTML=`<span class="eyebrow">HASIL KUIS ${quizScript.toUpperCase()}</span><h3>Kuis selesai!</h3><strong>${quizScore}/100</strong><p>Kamu menjawab benar ${quizScore/10} dari 10 soal ${quizScript}.</p><button class="btn primary" id="quizAgain">Ulangi Kuis</button> <button class="btn secondary" id="quizChoose">Pilih jenis huruf</button>`;$('quizAgain').addEventListener('click',()=>startQuiz(quizScript));$('quizChoose').addEventListener('click',()=>startQuiz());renderStats()}
 $('quizNext').addEventListener('click',()=>{if(quizIndex<9){quizIndex++;quizLocked=false;renderQuiz()}else finishQuiz()});
 $('startQuiz').addEventListener('click',()=>startQuiz());
@@ -133,13 +157,50 @@ const sentenceBank=[
  {meaning:'Saya pergi ke sekolah.',romaji:'Watashi wa gakkou e ikimasu.',h:['わたし','は','がっこう','へ','いきます'],k:['ワタシ','ハ','ガッコウ','ヘ','イキマス'],why:'へ (e) menunjukkan arah atau tujuan. がっこう berarti sekolah dan いきます berarti pergi.'},
  {meaning:'Ini adalah buku.',romaji:'Kore wa hon desu.',h:['これ','は','ほん','です'],k:['コレ','ハ','ホン','デス'],why:'これ berarti ini, は menandai topik, dan です adalah bentuk sopan yang bermakna “adalah”.'}
 ];
-function renderSentence(){const q=sentenceBank[sentenceIndex%sentenceBank.length];sentenceSelected=[];$('sentenceMeaning').textContent=`Susun kata berikut menjadi: ${q.meaning}`;$('sentenceFeedback').textContent='';$('sentenceAnswer').innerHTML='<span class="muted">Pilih potongan kata di bawah.</span>';const pieces=shuffle(sentenceScript==='hiragana'?q.h:q.k);$('sentencePieces').innerHTML=pieces.map((w,i)=>`<button class="option-btn sentence-piece" data-word="${w}" data-id="${i}">${w}</button>`).join('');document.querySelectorAll('.sentence-piece').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;b.disabled=true;sentenceSelected.push(b.dataset.word);renderSentenceAnswer()}))}
-function renderSentenceAnswer(){$('sentenceAnswer').innerHTML=sentenceSelected.length?sentenceSelected.map((w,i)=>`<button class="option-btn" data-remove="${i}">${w}</button>`).join(' '):'<span class="muted">Pilih potongan kata di bawah.</span>';document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.remove),word=sentenceSelected[i];sentenceSelected.splice(i,1);const piece=[...document.querySelectorAll('.sentence-piece')].find(x=>x.dataset.word===word&&x.disabled);if(piece)piece.disabled=false;renderSentenceAnswer()}))}
+function renderSentence(){
+  const q=sentenceBank[sentenceIndex%sentenceBank.length];
+  sentenceSelected=[];
+  $('sentenceMeaning').textContent=`Susun kata berikut menjadi: ${q.meaning}`;
+  $('sentenceFeedback').textContent='';
+  $('sentenceFeedback').style.color='';
+  $('sentenceAnswer').innerHTML='<span class="muted">Pilih potongan kata di bawah.</span>';
+  const words=sentenceScript==='hiragana'?q.h:q.k;
+  const pieces=shuffle(words.map((word,index)=>({word,index})));
+  $('sentencePieces').innerHTML=pieces.map(x=>`<button type="button" class="option-btn sentence-piece" data-piece-id="${x.index}">${x.word}</button>`).join('');
+  document.querySelectorAll('.sentence-piece').forEach(b=>b.addEventListener('click',()=>{
+    const id=Number(b.dataset.pieceId);
+    if(sentenceSelected.some(x=>x.id===id))return;
+    sentenceSelected.push({id,word:words[id]});
+    renderSentenceAnswer();
+  }));
+}
+function renderSentenceAnswer(){
+  $('sentenceAnswer').innerHTML=sentenceSelected.length
+    ?sentenceSelected.map((x,i)=>`<button type="button" class="option-btn" data-remove="${i}" title="Klik untuk mengembalikan potongan">${x.word}</button>`).join(' ')
+    :'<span class="muted">Pilih potongan kata di bawah.</span>';
+  document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{
+    sentenceSelected.splice(Number(b.dataset.remove),1);
+    renderSentenceAnswer();
+  }));
+  const selectedIds=new Set(sentenceSelected.map(x=>x.id));
+  document.querySelectorAll('.sentence-piece').forEach(b=>{
+    b.disabled=selectedIds.has(Number(b.dataset.pieceId));
+  });
+}
 $('sentenceScript').addEventListener('change',()=>{sentenceScript=$('sentenceScript').value;renderSentence()});
-$('openSentence').addEventListener('click',()=>{renderSentence();openPanel('sentencePanel')});
+$('openSentence').addEventListener('click',()=>{sentenceScript=$('sentenceScript').value;renderSentence();openPanel('sentencePanel')});
 $('resetSentence').addEventListener('click',renderSentence);
 $('nextSentence').addEventListener('click',()=>{sentenceIndex=(sentenceIndex+1)%sentenceBank.length;renderSentence()});
-$('checkSentence').addEventListener('click',()=>{const q=sentenceBank[sentenceIndex],correct=sentenceScript==='hiragana'?q.h:q.k;const ok=sentenceSelected.join('|')===correct.join('|');$('sentenceFeedback').textContent=ok?`Benar! ${q.romaji} — ${q.why}`:`Belum tepat. Jawaban yang benar: ${correct.join(' ')} (${q.romaji}). Penjelasan: ${q.why}`;$('sentenceFeedback').style.color=ok?'#16845b':'#c04b56'});
+$('checkSentence').addEventListener('click',()=>{
+  const q=sentenceBank[sentenceIndex%sentenceBank.length];
+  const correct=sentenceScript==='hiragana'?q.h:q.k;
+  const answer=sentenceSelected.map(x=>x.word);
+  const ok=answer.length===correct.length&&answer.every((word,i)=>word===correct[i]);
+  $('sentenceFeedback').textContent=ok
+    ?`Benar! ${q.romaji} — ${q.why}`
+    :`Belum tepat. Jawaban yang benar: ${correct.join(' ')} (${q.romaji}). Penjelasan: ${q.why}`;
+  $('sentenceFeedback').style.color=ok?'#16845b':'#c04b56';
+});
 
 // Simulasi JLPT N5: 10 soal, setiap soal bernilai 10 poin dan disertai pembahasan.
 const jlptBank=[
