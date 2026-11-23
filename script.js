@@ -244,3 +244,91 @@ function addChat(text,type){const d=document.createElement('div');d.className=`c
 function sendChat(text){const q=text.trim();if(!q)return;addChat(q,'user');$('chatInput').value='';setTimeout(()=>addChat(botReply(q),'bot'),220)}
 $('chatLauncher').addEventListener('click',()=>$('chatWidget').classList.toggle('hidden'));$('chatLauncher').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('chatWidget').classList.toggle('hidden')}});
 $('chatClose').addEventListener('click',()=>$('chatWidget').classList.add('hidden'));$('chatForm').addEventListener('submit',e=>{e.preventDefault();sendChat($('chatInput').value)});document.querySelectorAll('.chat-suggestions button').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.prompt)));
+// AI Translator — request goes to the Cloudflare Worker.
+// OpenRouter API Key disimpan sebagai Secret di Cloudflare, bukan di browser/GitHub.
+// Setelah Worker berhasil di-deploy, ganti URL di bawah dengan alamat Worker milikmu.
+const TRANSLATOR_API_URL = 'https://nihongo-translator-api.japanese-learning-arya.workers.dev';
+
+function setTranslatorStatus(message, isError = false) {
+  const el = $('translatorStatus');
+  el.textContent = message;
+  el.classList.toggle('error', isError);
+}
+
+async function translateWithAI() {
+  const source = $('translatorInput').value.trim();
+  const script = $('translatorScript').value;
+
+  if (!source) {
+    setTranslatorStatus('Tulis teks yang ingin diterjemahkan terlebih dahulu.', true);
+    $('translatorInput').focus();
+    return;
+  }
+
+  if (TRANSLATOR_API_URL.includes('GANTI-') || !/^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.workers\.dev$/i.test(TRANSLATOR_API_URL)) {
+    setTranslatorStatus('Alamat Cloudflare Worker belum diatur. Isi TRANSLATOR_API_URL di script.js setelah Worker di-deploy.', true);
+    return;
+  }
+
+  const button = $('translateButton');
+  const result = $('translatorResult');
+  button.disabled = true;
+  button.textContent = '⏳ Menerjemahkan...';
+  result.classList.add('hidden');
+  result.textContent = '';
+  setTranslatorStatus('Menghubungi server penerjemah. Mohon tunggu...');
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const response = await fetch(`${TRANSLATOR_API_URL}/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: source, script }),
+      signal: controller.signal
+    });
+
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error('Respons server tidak dapat dibaca. Periksa alamat Worker dan coba lagi.');
+    }
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || `Server mengembalikan HTTP ${response.status}.`);
+    }
+
+    if (!data.output || typeof data.output !== 'string') {
+      throw new Error('Server belum mengirimkan hasil terjemahan. Silakan coba lagi.');
+    }
+
+    result.textContent = data.output;
+    result.classList.remove('hidden');
+    setTranslatorStatus(`Terjemahan berhasil dibuat dalam ${script === 'hiragana' ? 'Hiragana.' : 'Katakana.'}`);
+  } catch (error) {
+    let message = error?.message || 'Terjadi kesalahan saat menghubungi server.';
+    if (error?.name === 'AbortError') {
+      message = 'Permintaan terlalu lama (lebih dari 60 detik). Periksa koneksi internet lalu coba lagi.';
+    } else if (/Failed to fetch|NetworkError|fetch/i.test(message)) {
+      message = 'Tidak dapat terhubung ke Worker. Periksa URL Worker, pengaturan ALLOWED_ORIGINS, dan koneksi internet.';
+    }
+    setTranslatorStatus('Gagal menerjemahkan: ' + message, true);
+  } finally {
+    clearTimeout(timeoutId);
+    button.disabled = false;
+    button.textContent = '✨ Terjemahkan';
+  }
+}
+
+$('translateButton').addEventListener('click', translateWithAI);
+$('translatorInput').addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') translateWithAI();
+});
+document.querySelectorAll('.translator-examples button').forEach(button => {
+  button.addEventListener('click', () => {
+    $('translatorInput').value = button.dataset.example || '';
+    $('translatorInput').focus();
+  });
+});

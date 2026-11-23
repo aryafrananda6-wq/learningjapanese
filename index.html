@@ -176,9 +176,20 @@
   <footer><div class="footer-brand">あ Nihongo</div><p>Terus berlatih sedikit demi sedikit setiap hari. がんばって！</p><small>Japanese Learning · Dibuat untuk belajar mandiri</small></footer>
 
   <div class="chat-launcher" id="chatLauncher" aria-label="Buka asisten mini" role="button" tabindex="0">💬<span class="chat-dot"></span></div>
-  <section class="chat-widget hidden" id="chatWidget" aria-label="Asisten mini">
-    <div class="chat-header"><div><strong>Asisten Nihongo</strong><small>Asisten belajar mini · Offline</small></div><button id="chatClose" aria-label="Tutup chat">×</button></div>
-    <div class="chat-messages" id="chatMessages"><div class="chat-bubble bot">Halo! 👋 Aku Asisten Nihongo. Kamu bisa bertanya tentang fitur website atau materi dasar bahasa Jepang.</div></div>
+  <section class="chat-widget hidden" id="chatWidget" aria-label="Asisten dan penerjemah Nihongo">
+    <div class="chat-header"><div><strong>Asisten Nihongo + AI Translator</strong><small>Penerjemah Jepang dengan OpenRouter AI</small></div><button id="chatClose" aria-label="Tutup chat">×</button></div>
+    <div class="translator-panel">
+      <div class="translator-heading"><strong>🌸 Terjemahkan ke Bahasa Jepang</strong><span class="ai-tag">AI</span></div>
+      <small class="translator-note">Penerjemah AI terhubung melalui server Cloudflare. API Key disimpan sebagai Secret di server dan tidak ditampilkan di browser atau repository GitHub.</small>
+      <label for="translatorInput">Teks yang ingin diterjemahkan</label>
+      <textarea id="translatorInput" rows="3" placeholder="Contoh: Saya ingin belajar bahasa Jepang."></textarea>
+      <div class="translator-controls"><label for="translatorScript">Hasil tulisan</label><select id="translatorScript"><option value="hiragana">Hiragana (ひらがな)</option><option value="katakana">Katakana (カタカナ)</option></select></div>
+      <div class="translator-examples"><button type="button" data-example="Selamat pagi, apa kabar?">Contoh salam</button><button type="button" data-example="Saya suka belajar bahasa Jepang.">Contoh kalimat</button><button type="button" data-example="Saya ingin minum air.">Contoh sederhana</button></div>
+      <button type="button" class="btn primary translator-submit" id="translateButton">✨ Terjemahkan</button>
+      <p id="translatorStatus" class="translator-status" role="status">Tulis teks, pilih jenis huruf, lalu tekan Terjemahkan.</p>
+      <div id="translatorResult" class="translator-result hidden" aria-live="polite"></div>
+    </div>
+    <div class="chat-messages" id="chatMessages"><div class="chat-bubble bot">Halo! 👋 Aku Asisten Nihongo. Kamu juga bisa bertanya tentang fitur website atau materi dasar bahasa Jepang.</div></div>
     <div class="chat-suggestions"><button data-prompt="Bagaimana cara belajar Hiragana?">Belajar Hiragana</button><button data-prompt="Apa itu partikel wa?">Partikel は</button><button data-prompt="Fitur apa saja di website ini?">Fitur website</button></div>
     <form id="chatForm" class="chat-form"><input id="chatInput" type="text" placeholder="Tulis pertanyaan..." autocomplete="off"><button type="submit">➤</button></form>
   </section>

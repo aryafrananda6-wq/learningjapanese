@@ -11,3 +11,23 @@
 
 /* Perbaikan tampilan latihan susun kalimat dan feedback */
 .sentence-answer,.sentence-pieces{display:flex;flex-wrap:wrap;gap:9px;min-height:54px;padding:13px;margin:12px 0;border:1px dashed var(--line);border-radius:12px;background:var(--surface2);align-items:center}.sentence-piece:disabled{opacity:.35;cursor:default}.sentence-answer .option-btn{font-family:"Noto Sans JP",sans-serif;font-size:18px}.sentence-pieces .option-btn{font-family:"Noto Sans JP",sans-serif;font-size:18px}.sentence-answer .option-btn{padding:8px 13px}
+
+
+/* AI Translator panel */
+.chat-widget{height:min(760px,calc(100vh - 110px));}
+.translator-panel{padding:13px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:7px;max-height:58%;overflow:auto;flex-shrink:0;background:var(--surface)}
+.translator-heading{display:flex;align-items:center;justify-content:space-between;font-size:13px}
+.ai-tag{font-size:9px;font-weight:800;color:#fff;background:var(--primary);padding:3px 7px;border-radius:20px}
+.translator-panel>label,.translator-controls label{font-size:10px;font-weight:800;color:var(--muted)}
+.translator-input,.translator-panel textarea,.translator-controls select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--bg);color:var(--text);font:inherit;font-size:12px;outline:none}
+.translator-panel textarea{resize:vertical;min-height:60px}
+.translator-panel input:focus,.translator-panel textarea:focus,.translator-controls select:focus{border-color:var(--primary)}
+.translator-note{font-size:9px;line-height:1.4;color:var(--muted)}
+.translator-controls{display:flex;align-items:center;gap:10px}.translator-controls select{flex:1;padding:7px}
+.translator-examples{display:flex;gap:5px;flex-wrap:wrap}
+.translator-examples button{border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-size:9px;padding:5px 7px;border-radius:20px}
+.translator-submit{width:100%;padding:9px;font-size:12px}.translator-submit:disabled{opacity:.65;cursor:wait;transform:none}
+.translator-status{font-size:10px;color:var(--muted);margin:0}.translator-status.error{color:var(--red)}
+.translator-result{white-space:pre-wrap;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:12px;line-height:1.65;max-height:180px;overflow:auto}
+.translator-help{font-size:10px;color:var(--primary);text-decoration:none;align-self:flex-start}
+@media(max-width:680px){.chat-widget{height:min(760px,calc(100vh - 100px));}.translator-panel{max-height:58%;}}
