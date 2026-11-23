@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f7fb">
+  <title>Nihongo — Japanese Learning</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#beranda"><span class="brand-mark">あ</span><span>Nihongo<span class="brand-sub">Japanese Learning</span></span></a>
+    <button class="menu-toggle" id="menuToggle" aria-label="Buka menu">☰</button>
+    <nav id="mainNav">
+      <a href="#beranda">Beranda</a>
+      <a href="#huruf">Huruf</a>
+      <a href="#kosakata">Kosakata</a>
+      <a href="#kanji">Kanji</a>
+      <a href="#budaya">Budaya</a>
+      <a href="#tata-bahasa">Tata Bahasa</a>
+      <a href="#latihan">Latihan</a>
+      <a href="#kamus">Kamus</a>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Ganti tema">🌙</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="beranda">
+      <div class="hero-copy">
+        <span class="eyebrow">はじめまして · Selamat datang</span>
+        <h1>Mulai perjalanan<br><span>belajar bahasa Jepang.</span></h1>
+        <p>Pelajari huruf, kosakata, tata bahasa, dan pelafalan bahasa Jepang dengan cara yang sederhana dan menyenangkan.</p>
+        <div class="hero-actions"><a class="btn primary" href="#huruf">Mulai Belajar</a><a class="btn secondary" href="#latihan">Coba Latihan</a></div>
+        <div class="hero-meta"><span>✓ Materi dasar</span><span>✓ Latihan interaktif</span><span>✓ Progres tersimpan</span></div>
+      </div>
+      <div class="hero-art" aria-hidden="true"><div class="sun"></div><div class="jp-card"><span>日本語</span><strong>こんにちは</strong><small>Konnichiwa · Halo</small></div><div class="hero-stamp">日本</div></div>
+    </section>
+
+    <section class="daily-grid section" aria-label="Ringkasan belajar">
+      <article class="panel word-day">
+        <div class="section-kicker">KATA JEPANG HARI INI</div>
+        <div class="word-day-content"><div><div class="jp-word" id="dailyWord">ありがとう</div><div class="romaji" id="dailyRomaji">arigatou</div><p id="dailyMeaning">Terima kasih</p></div><button class="audio-btn" id="dailyAudio" aria-label="Dengarkan kata hari ini">🔊</button></div>
+        <span class="muted tiny" id="dailyCategory">Kosakata harian</span>
+      </article>
+      <article class="panel goal-panel">
+        <div class="section-kicker">TARGET HARIAN</div>
+        <div class="goal-line"><strong><span id="goalProgress">0</span> / <span id="goalTarget">20</span> menit</strong><span id="goalPercent">0%</span></div>
+        <div class="progress-track"><div id="goalBar" class="progress-fill"></div></div>
+        <div class="goal-edit"><label for="goalInput">Target (menit/hari)</label><input id="goalInput" type="number" min="5" max="600" value="20"><button class="btn small primary" id="saveGoal">Simpan</button></div>
+        <p class="muted tiny" id="goalMessage">Ayo mulai sesi belajarmu hari ini!</p>
+      </article>
+      <article class="panel timer-panel">
+        <div class="section-kicker">TIMER BELAJAR</div>
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+        <div class="timer-controls"><button class="btn primary small" id="timerStart">▶ Mulai</button><button class="btn secondary small" id="timerPause">Ⅱ Jeda</button><button class="btn ghost small" id="timerReset">↺ Reset</button></div>
+        <p class="muted tiny">Waktu belajar hari ini: <strong id="todayStudy">0 menit</strong></p>
+      </article>
+    </section>
+
+    <section class="section" id="huruf">
+      <div class="section-heading"><div><span class="eyebrow">DASAR BAHASA JEPANG</span><h2>Kenali huruf Jepang</h2><p>Mulailah dengan dua sistem penulisan dasar berikut.</p></div></div>
+      <div class="tabs"><button class="tab active" data-script="hiragana">Hiragana</button><button class="tab" data-script="katakana">Katakana</button></div>
+      <div class="toolbar"><input id="characterSearch" type="search" placeholder="Cari huruf atau romaji..."><span class="muted" id="characterCount"></span></div>
+      <div class="character-grid" id="characterGrid"></div>
+    </section>
+
+    <section class="section" id="flashcards">
+      <div class="section-heading"><div><span class="eyebrow">ULANGI & HAFALKAN</span><h2>Flashcard huruf</h2><p>Uji ingatanmu dengan membalik kartu untuk melihat romaji.</p></div></div>
+      <div class="flashcard-wrap">
+        <div class="flashcard" id="flashcard" tabindex="0" role="button" aria-label="Balik flashcard"><div class="flashcard-inner"><div class="flashcard-face flash-front"><small id="flashScript">HIRAGANA</small><strong id="flashChar">あ</strong><span>Ketuk kartu untuk melihat jawaban</span></div><div class="flashcard-face flash-back"><small>ROMAJI</small><strong id="flashRomaji">a</strong><span id="flashBackChar">あ</span></div></div></div>
+        <div class="flash-actions"><button class="btn secondary" id="flashPrev">← Sebelumnya</button><button class="btn primary" id="flashNext">Berikutnya →</button><button class="btn ghost" id="flashSpeak">🔊 Audio</button></div>
+      </div>
+    </section>
+
+    <section class="section soft-section" id="kosakata">
+      <div class="section-heading"><div><span class="eyebrow">TANGO · 単語</span><h2>Belajar kosakata</h2><p>Pelajari kata-kata umum berdasarkan kategori. Tekan audio untuk mendengarkan pelafalannya.</p></div></div>
+      <div class="toolbar"><select id="vocabCategory"><option value="Semua">Semua kategori</option></select><input id="vocabSearch" type="search" placeholder="Cari kosakata..."></div>
+      <div class="vocab-grid" id="vocabGrid"></div>
+    </section>
+
+    <section class="section" id="kanji">
+      <div class="section-heading"><div><span class="eyebrow">KANJI · 漢字</span><h2>Belajar Kanji dasar</h2><p>Kenali Kanji tingkat pemula beserta arti, cara baca, dan contoh penggunaannya.</p></div></div>
+      <div class="toolbar"><input id="kanjiSearch" type="search" placeholder="Cari Kanji, arti, atau cara baca..."><span class="muted" id="kanjiCount"></span></div>
+      <div class="kanji-grid" id="kanjiGrid"></div>
+    </section>
+
+    <section class="section soft-section" id="favorit">
+      <div class="section-heading"><div><span class="eyebrow">SAVED WORDS · お気に入り</span><h2>Kosakata favorit</h2><p>Simpan kata penting agar bisa dipelajari kembali kapan saja.</p></div></div>
+      <div class="vocab-grid" id="favoriteGrid"></div>
+    </section>
+
+    <section class="section" id="tata-bahasa">
+      <div class="section-heading"><div><span class="eyebrow">文法 · BUNPOU</span><h2>Materi tata bahasa dasar</h2><p>Pahami pola kalimat sederhana yang sering digunakan dalam bahasa Jepang.</p></div></div>
+      <div class="grammar-grid" id="grammarGrid"></div>
+    </section>
+
+    <section class="section soft-section" id="latihan">
+      <div class="section-heading"><div><span class="eyebrow">PRAKTIKKAN KEMAMPUANMU</span><h2>Area latihan</h2><p>Pilih latihan yang ingin kamu coba.</p></div></div>
+      <div class="practice-grid">
+        <article class="practice-card"><div class="practice-icon">🎧</div><h3>Listening Test</h3><p>Dengarkan huruf Jepang, lalu pilih romaji yang sesuai.</p><button class="btn primary small" id="startListening">Mulai Listening</button></article>
+        <article class="practice-card"><div class="practice-icon">✍️</div><h3>Latihan Menulis Huruf</h3><p>Gambar huruf Jepang pada area latihan menggunakan mouse atau layar sentuh.</p><button class="btn primary small" id="openWriting">Buka Latihan</button></article>
+        <article class="practice-card"><div class="practice-icon">🧩</div><h3>Game Mencocokkan</h3><p>Pasangkan karakter Jepang dengan romajinya.</p><button class="btn primary small" id="startMatching">Mulai Game</button></article>
+        <article class="practice-card"><div class="practice-icon">📝</div><h3>Kuis Huruf</h3><p>Kerjakan 20 soal acak dan lihat nilai akhir kamu.</p><button class="btn primary small" id="startQuiz">Mulai Kuis</button></article>
+        <article class="practice-card"><div class="practice-icon">🎙️</div><h3>Latihan Pengucapan</h3><p>Rekam suaramu saat mengucapkan contoh kata Jepang, lalu dengarkan kembali.</p><button class="btn primary small" id="openPronunciation">Mulai Rekam</button></article>
+        <article class="practice-card"><div class="practice-icon">🧱</div><h3>Susun Kalimat</h3><p>Susun potongan kata menjadi kalimat Jepang yang benar.</p><button class="btn primary small" id="openSentence">Mulai Susun</button></article>
+        <article class="practice-card"><div class="practice-icon">🏅</div><h3>Simulasi JLPT N5</h3><p>Uji pemahaman kosakata dan tata bahasa tingkat pemula.</p><button class="btn primary small" id="openJLPT">Mulai Ujian</button></article>
+      </div>
+
+      <div class="exercise-panel hidden" id="listeningPanel">
+        <div class="exercise-title"><div><span class="eyebrow">LISTENING</span><h3>Dengarkan dan pilih jawaban</h3></div><button class="close-btn" data-close="listeningPanel">✕</button></div>
+        <div class="listen-question"><button class="listen-play" id="listenPlay">🔊</button><p>Dengarkan suara, lalu pilih romaji yang benar.</p></div>
+        <div class="option-grid" id="listenOptions"></div><p class="feedback" id="listenFeedback"></p><div class="exercise-footer"><span id="listenCount">Soal 1/10</span><button class="btn primary small" id="listenNext" disabled>Berikutnya</button></div>
+      </div>
+
+      <div class="exercise-panel hidden" id="writingPanel">
+        <div class="exercise-title"><div><span class="eyebrow">WRITING PRACTICE</span><h3>Latihan menulis huruf</h3></div><button class="close-btn" data-close="writingPanel">✕</button></div>
+        <div class="writing-toolbar"><label for="writingScript">Jenis huruf</label><select id="writingScript"><option value="hiragana">Hiragana</option><option value="katakana">Katakana</option></select><label for="writingCharacter">Huruf</label><select id="writingCharacter"></select><button class="btn ghost small" id="showWritingGuide">Tampilkan contoh</button></div>
+        <div class="writing-area"><div class="writing-guide" id="writingGuide">あ</div><canvas id="writingCanvas" width="700" height="350" aria-label="Area untuk menulis huruf"></canvas></div>
+        <div class="writing-toolbar"><button class="btn secondary small" id="clearCanvas">Hapus tulisan</button><span class="muted tiny">Gunakan mouse atau sentuh layar untuk menggambar.</span></div>
+      </div>
+
+      <div class="exercise-panel hidden" id="matchingPanel">
+        <div class="exercise-title"><div><span class="eyebrow">MATCHING GAME</span><h3>Cocokkan huruf dengan romaji</h3></div><button class="close-btn" data-close="matchingPanel">✕</button></div>
+        <div class="match-stats"><span>Langkah: <strong id="matchMoves">0</strong></span><span>Pasangan: <strong id="matchPairs">0/6</strong></span></div><div class="match-grid" id="matchGrid"></div><p class="feedback" id="matchFeedback"></p><button class="btn primary small" id="restartMatching">Acak ulang</button>
+      </div>
+
+      <div class="exercise-panel hidden" id="quizPanel">
+        <div class="exercise-title"><div><span class="eyebrow">QUIZ</span><h3>Kuis Hiragana & Katakana</h3></div><button class="close-btn" data-close="quizPanel">✕</button></div>
+        <div id="quizSetup" class="quiz-setup"><p class="muted">Pilih jenis huruf yang ingin kamu latih.</p><div class="quiz-script-options"><button class="quiz-script-btn" data-quiz-script="hiragana"><strong>あ</strong><span>Hiragana</span><small>46 huruf dasar</small></button><button class="quiz-script-btn" data-quiz-script="katakana"><strong>ア</strong><span>Katakana</span><small>46 huruf dasar</small></button></div></div>
+        <div id="quizContent" class="hidden"><div class="quiz-progress"><span id="quizCounter">Soal 1/20</span><span id="quizScore">Nilai: 0</span></div><div class="quiz-question"><div class="quiz-character" id="quizCharacter">あ</div><p id="quizPrompt">Pilih romaji yang benar.</p></div><div class="option-grid" id="quizOptions"></div><p class="feedback" id="quizFeedback"></p><div class="exercise-footer"><span id="quizStatus">Pilih satu jawaban</span><button class="btn primary small" id="quizNext" disabled>Berikutnya</button></div><button class="btn ghost small quiz-back" id="quizBack">← Ganti jenis huruf</button></div>
+        <div id="quizResult" class="quiz-result hidden"></div>
+      </div>
+    </section>
+
+      <div class="exercise-panel hidden" id="pronunciationPanel">
+        <div class="exercise-title"><div><span class="eyebrow">SPEAKING PRACTICE</span><h3>Latihan pengucapan</h3></div><button class="close-btn" data-close="pronunciationPanel">✕</button></div>
+        <p class="muted">Dengarkan contoh, lalu rekam suaramu. Rekaman hanya diproses di browser ini.</p>
+        <div class="pronunciation-prompt"><strong id="pronunciationWord">こんにちは</strong><span id="pronunciationRomaji">konnichiwa · Halo</span><button class="btn secondary small" id="pronunciationSample">🔊 Dengarkan contoh</button></div>
+        <div class="record-controls"><button class="btn primary" id="recordStart">● Mulai Rekam</button><button class="btn secondary" id="recordStop" disabled>■ Berhenti</button><button class="btn ghost" id="recordPlay" disabled>▶ Putar Rekaman</button><button class="btn ghost" id="recordNext">Kata Berikutnya →</button></div>
+        <p class="feedback" id="recordStatus">Izinkan akses mikrofon saat browser memintanya.</p><audio id="recordedAudio" controls class="recorded-audio hidden"></audio>
+      </div>
+
+      <div class="exercise-panel hidden" id="sentencePanel">
+        <div class="exercise-title"><div><span class="eyebrow">SENTENCE BUILDER</span><h3>Susun kalimat Jepang</h3></div><button class="close-btn" data-close="sentencePanel">✕</button></div>
+        <p class="muted" id="sentenceMeaning">Susun kata berikut menjadi: Saya minum air.</p>
+        <div class="sentence-answer" id="sentenceAnswer"><span class="muted">Pilih potongan kata di bawah.</span></div>
+        <div class="sentence-pieces" id="sentencePieces"></div>
+        <div class="record-controls"><button class="btn primary small" id="checkSentence">Periksa Jawaban</button><button class="btn secondary small" id="resetSentence">Ulangi</button><button class="btn ghost small" id="nextSentence">Soal Berikutnya →</button></div>
+        <p class="feedback" id="sentenceFeedback"></p>
+      </div>
+
+      <div class="exercise-panel hidden" id="jlptPanel">
+        <div class="exercise-title"><div><span class="eyebrow">JAPANESE-LANGUAGE PROFICIENCY TEST</span><h3>Simulasi ujian JLPT N5</h3></div><button class="close-btn" data-close="jlptPanel">✕</button></div>
+        <div id="jlptIntro"><p>Latihan pemula berisi 10 soal kosakata dan tata bahasa. Nilai latihan ini bukan nilai resmi JLPT.</p><button class="btn primary" id="jlptBegin">Mulai 10 Soal</button></div>
+        <div id="jlptQuiz" class="hidden"><div class="quiz-progress"><span id="jlptCounter">Soal 1/10</span><span id="jlptScore">Benar: 0</span></div><h3 id="jlptQuestion"></h3><div class="option-grid" id="jlptOptions"></div><p class="feedback" id="jlptFeedback"></p><div class="exercise-footer"><span>Pilih jawaban terbaik</span><button class="btn primary small" id="jlptNext" disabled>Berikutnya</button></div></div>
+        <div id="jlptResult" class="quiz-result hidden"></div>
+      </div>
+
+    <section class="section" id="kamus">
+      <div class="section-heading"><div><span class="eyebrow">JISHO · 辞書</span><h2>Kamus mini Jepang</h2><p>Cari kosakata berdasarkan tulisan Jepang, romaji, atau arti bahasa Indonesia.</p></div></div>
+      <div class="dictionary-box"><div class="dictionary-search"><input id="dictionarySearch" type="search" placeholder="Contoh: neko, kucing, 猫"><button class="btn primary" id="dictionaryClear">Reset</button></div><div class="dictionary-results" id="dictionaryResults"></div></div>
+    </section>
+
+    <section class="section" id="budaya">
+      <div class="section-heading"><div><span class="eyebrow">日本文化 · BUDAYA</span><h2>Ensiklopedia budaya Jepang</h2><p>Kenali tradisi dan kebiasaan yang membantu memahami bahasa serta kehidupan di Jepang.</p></div></div>
+      <div class="culture-grid" id="cultureGrid"></div>
+    </section>
+
+    <section class="section soft-section" id="progress">
+      <div class="section-heading"><div><span class="eyebrow">PERKEMBANGANMU</span><h2>Statistik belajar</h2><p>Semua data tersimpan di browser ini.</p></div></div>
+      <div class="stats-grid"><article class="stat-card"><span>Jumlah kuis</span><strong id="statAttempts">0</strong></article><article class="stat-card"><span>Nilai terbaik</span><strong id="statBest">0</strong></article><article class="stat-card"><span>Rata-rata nilai</span><strong id="statAverage">0</strong></article><article class="stat-card"><span>Jawaban benar</span><strong id="statCorrect">0</strong></article></div>
+      <div class="history-box"><div class="history-heading"><h3>Riwayat kuis</h3><button class="btn ghost small" id="clearHistory">Hapus riwayat</button></div><div id="quizHistory" class="history-list"><p class="muted">Belum ada riwayat kuis.</p></div></div>
+    </section>
+  </main>
+
+  <footer><div class="footer-brand">あ Nihongo</div><p>Terus berlatih sedikit demi sedikit setiap hari. がんばって！</p><small>Japanese Learning · Dibuat untuk belajar mandiri</small></footer>
+
+  <div class="chat-launcher" id="chatLauncher" aria-label="Buka asisten mini" role="button" tabindex="0">💬<span class="chat-dot"></span></div>
+  <section class="chat-widget hidden" id="chatWidget" aria-label="Asisten mini">
+    <div class="chat-header"><div><strong>Asisten Nihongo</strong><small>Asisten belajar mini · Offline</small></div><button id="chatClose" aria-label="Tutup chat">×</button></div>
+    <div class="chat-messages" id="chatMessages"><div class="chat-bubble bot">Halo! 👋 Aku Asisten Nihongo. Kamu bisa bertanya tentang fitur website atau materi dasar bahasa Jepang.</div></div>
+    <div class="chat-suggestions"><button data-prompt="Bagaimana cara belajar Hiragana?">Belajar Hiragana</button><button data-prompt="Apa itu partikel wa?">Partikel は</button><button data-prompt="Fitur apa saja di website ini?">Fitur website</button></div>
+    <form id="chatForm" class="chat-form"><input id="chatInput" type="text" placeholder="Tulis pertanyaan..." autocomplete="off"><button type="submit">➤</button></form>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
