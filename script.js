@@ -33,6 +33,8 @@ const allChars = [...hiragana.map(x=>({...{char:x[0],romaji:x[1],script:'Hiragan
 let currentScript='hiragana', flashIndex=0, quizQuestions=[], quizIndex=0, quizScore=0, quizLocked=false, quizScript='hiragana';
 let listeningQuestions=[], listeningIndex=0, listeningLocked=false, matchSelected=null, matchMoves=0, matchFound=0;
 let timerSeconds=0,timerInterval=null, timerRunning=false;
+let jlptQuestions=[], jlptIndex=0, jlptCorrect=0, jlptLocked=false;
+let sentenceIndex=0, sentenceScript='hiragana', sentenceSelected=[];
 const todayKey = new Date().toLocaleDateString('en-CA');
 const readStore=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)) ?? fallback}catch{return fallback}};
 const writeStore=(key,value)=>localStorage.setItem(key,JSON.stringify(value));
@@ -63,7 +65,7 @@ function renderDailyWord(){const dayNumber=Math.floor(new Date(new Date().toDate
 
 // Vocabulary
 const cats=['Semua',...new Set(vocab.map(v=>v[3]))];cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c==='Semua'?'Semua kategori':c;$('vocabCategory').appendChild(o)});
-function renderVocab(){const cat=$('vocabCategory').value,q=$('vocabSearch').value.toLowerCase();const rows=vocab.filter(v=>(cat==='Semua'||v[3]===cat)&&v.join(' ').toLowerCase().includes(q));$('vocabGrid').innerHTML=rows.map(v=>`<article class="vocab-card"><div><div class="jp">${escapeHTML(v[0])}</div><h3>${escapeHTML(v[2])}</h3><p>${escapeHTML(v[1])} · ${escapeHTML(v[3])}</p></div><div class="vocab-actions"><button aria-label="Dengarkan ${escapeHTML(v[0])}" data-say="${escapeHTML(v[0])}">🔊</button><button aria-label="Simpan favorit" data-favorite="${escapeHTML(v[0])}">${isFavorite(v[0])?'★':'☆'}</button></div></article>`).join('')||'<div class="empty-state">Kosakata tidak ditemukan.</div>';document.querySelectorAll('[data-say]').forEach(b=>b.addEventListener('click',()=>speak(b.dataset.say)));document.querySelectorAll('[data-favorite]').forEach(b=>b.addEventListener('click',()=>toggleFavorite(b.dataset.favorite)))}
+function renderVocab(){const cat=$('vocabCategory').value,q=$('vocabSearch').value.toLowerCase();const rows=vocab.filter(v=>(cat==='Semua'||v[3]===cat)&&v.join(' ').toLowerCase().includes(q));$('vocabGrid').innerHTML=rows.map(v=>`<article class="vocab-card"><div><div class="jp">${escapeHTML(v[0])}</div><h3>${escapeHTML(v[2])}</h3><p>${escapeHTML(v[1])} · ${escapeHTML(v[3])}</p></div><button aria-label="Dengarkan ${escapeHTML(v[0])}" data-say="${escapeHTML(v[0])}">🔊</button></article>`).join('')||'<div class="empty-state">Kosakata tidak ditemukan.</div>';document.querySelectorAll('[data-say]').forEach(b=>b.addEventListener('click',()=>speak(b.dataset.say)))}
 $('vocabCategory').addEventListener('change',renderVocab);$('vocabSearch').addEventListener('input',renderVocab);renderVocab();
 
 // Grammar cards
@@ -82,9 +84,9 @@ function renderGoal(){const mins=Math.floor(getTodayStudy()/60),goal=getGoal(),p
 function formatTime(sec){const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`}
 function renderTimer(){$('timerDisplay').textContent=formatTime(timerSeconds)}
 $('saveGoal').addEventListener('click',()=>{const n=Math.max(5,Math.min(600,Number($('goalInput').value)||20));localStorage.setItem('nihongo-goal',n);renderGoal()});
-$('timerStart').addEventListener('click',()=>{if(timerRunning)return;timerRunning=true;timerInterval=setInterval(()=>{timerSeconds++;if(timerSeconds%60===0){setTodayStudy(getTodayStudy()+60);renderGoal()}renderTimer()},1000)});
-$('timerPause').addEventListener('click',()=>{if(timerRunning){clearInterval(timerInterval);timerRunning=false;setTodayStudy(getTodayStudy()+(timerSeconds%60));timerSeconds=0;renderTimer();renderGoal()}});
-$('timerReset').addEventListener('click',()=>{clearInterval(timerInterval);timerRunning=false;timerSeconds=0;renderTimer()});
+$('timerStart').addEventListener('click',()=>{if(timerRunning)return;timerRunning=true;timerInterval=setInterval(()=>{timerSeconds++;setTodayStudy(getTodayStudy()+1);if(timerSeconds%60===0)renderGoal();renderTimer()},1000)});
+$('timerPause').addEventListener('click',()=>{if(!timerRunning)return;clearInterval(timerInterval);timerInterval=null;timerRunning=false;renderGoal();renderTimer()});
+$('timerReset').addEventListener('click',()=>{if(timerRunning){clearInterval(timerInterval);timerInterval=null;timerRunning=false;}timerSeconds=0;renderTimer();renderGoal()});
 renderGoal();renderTimer();
 
 // Writing canvas
@@ -114,97 +116,50 @@ $('startMatching').addEventListener('click',()=>{startMatching();openPanel('matc
 
 // Quiz and history
 function getHistory(){return readStore('nihongo-history',[])}
-function renderStats(){const h=getHistory();$('statAttempts').textContent=h.length;$('statBest').textContent=h.length?Math.max(...h.map(x=>x.score)):0;$('statAverage').textContent=h.length?Math.round(h.reduce((s,x)=>s+x.score,0)/h.length):0;$('statCorrect').textContent=h.reduce((s,x)=>s+x.correct,0);$('quizHistory').innerHTML=h.length? h.slice(0,5).map(x=>`<div class="history-item"><span>${escapeHTML(x.date)}</span><strong>${x.script?x.script.toUpperCase()+' · ':''}${x.score}/100 · ${x.correct}/20 benar</strong></div>`).join(''):'<p class="muted">Belum ada riwayat kuis.</p>'}
-function startQuiz(script){if(!script){$('quizSetup').classList.remove('hidden');$('quizContent').classList.add('hidden');$('quizResult').classList.add('hidden');openPanel('quizPanel');return}quizScript=script;const source=script==='hiragana'?hiragana:katakana;quizQuestions=shuffle(source.map(x=>({char:x[0],romaji:x[1],script}))).slice(0,20);quizIndex=0;quizScore=0;quizLocked=false;$('quizSetup').classList.add('hidden');$('quizContent').classList.remove('hidden');$('quizResult').classList.add('hidden');$('quizPrompt').textContent=`Pilih romaji yang benar untuk huruf ${script==='hiragana'?'Hiragana':'Katakana'} berikut.`;renderQuiz();openPanel('quizPanel')}
-function renderQuiz(){const q=quizQuestions[quizIndex];const source=quizScript==='hiragana'?hiragana:katakana;$('quizCounter').textContent=`${quizScript==='hiragana'?'Hiragana':'Katakana'} · Soal ${quizIndex+1}/20`;$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizCharacter').textContent=q.char;$('quizFeedback').textContent='';$('quizStatus').textContent='Pilih satu jawaban';$('quizNext').disabled=true;$('quizNext').textContent=quizIndex===19?'Lihat Hasil':'Berikutnya';const opts=shuffle([q.romaji,...shuffle(source.filter(x=>x[1]!==q.romaji)).slice(0,3).map(x=>x[1])]);$('quizOptions').innerHTML=opts.map(o=>`<button class="option-btn" data-answer="${o}">${o}</button>`).join('');document.querySelectorAll('#quizOptions button').forEach(b=>b.addEventListener('click',()=>{if(quizLocked)return;quizLocked=true;const ok=b.dataset.answer===q.romaji;if(ok)quizScore+=5;b.classList.add(ok?'correct':'wrong');if(!ok)document.querySelector(`#quizOptions [data-answer="${q.romaji}"]`).classList.add('correct');$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizFeedback').textContent=ok?'Benar! +5 poin':`Jawaban yang benar adalah ${q.romaji}`;$('quizStatus').textContent=ok?'Jawaban benar':'Jawaban belum tepat';$('quizNext').disabled=false}))}
-function finishQuiz(){const h=getHistory();h.unshift({date:new Date().toLocaleString('id-ID'),score:quizScore,correct:quizScore/5,script:quizScript});writeStore('nihongo-history',h.slice(0,30));$('quizContent').classList.add('hidden');$('quizResult').classList.remove('hidden');$('quizResult').innerHTML=`<span class="eyebrow">HASIL KUIS ${quizScript.toUpperCase()}</span><h3>Kuis selesai!</h3><strong>${quizScore}/100</strong><p>Kamu menjawab benar ${quizScore/5} dari 20 soal ${quizScript}.</p><button class="btn primary" id="quizAgain">Ulangi Kuis</button> <button class="btn secondary" id="quizChoose">Pilih jenis huruf</button>`;$('quizAgain').addEventListener('click',()=>startQuiz(quizScript));$('quizChoose').addEventListener('click',()=>startQuiz());renderStats()}
-$('quizNext').addEventListener('click',()=>{if(quizIndex<19){quizIndex++;quizLocked=false;renderQuiz()}else finishQuiz()});
+function renderStats(){const h=getHistory();$('statAttempts').textContent=h.length;$('statBest').textContent=h.length?Math.max(...h.map(x=>x.score)):0;$('statAverage').textContent=h.length?Math.round(h.reduce((s,x)=>s+x.score,0)/h.length):0;$('statCorrect').textContent=h.reduce((s,x)=>s+x.correct,0);$('quizHistory').innerHTML=h.length? h.slice(0,5).map(x=>`<div class="history-item"><span>${escapeHTML(x.date)}</span><strong>${x.script?x.script.toUpperCase()+' · ':''}${x.score}/100 · ${x.correct}/${x.total||20} benar</strong></div>`).join(''):'<p class="muted">Belum ada riwayat kuis.</p>'}
+function startQuiz(script){if(!script){$('quizSetup').classList.remove('hidden');$('quizContent').classList.add('hidden');$('quizResult').classList.add('hidden');openPanel('quizPanel');return}quizScript=script;const source=script==='hiragana'?hiragana:katakana;quizQuestions=shuffle(source.map(x=>({char:x[0],romaji:x[1],script}))).slice(0,10);quizIndex=0;quizScore=0;quizLocked=false;$('quizSetup').classList.add('hidden');$('quizContent').classList.remove('hidden');$('quizResult').classList.add('hidden');$('quizPrompt').textContent=`Pilih romaji yang benar untuk huruf ${script==='hiragana'?'Hiragana':'Katakana'} berikut.`;renderQuiz();openPanel('quizPanel')}
+function renderQuiz(){const q=quizQuestions[quizIndex];const source=quizScript==='hiragana'?hiragana:katakana;$('quizCounter').textContent=`${quizScript==='hiragana'?'Hiragana':'Katakana'} · Soal ${quizIndex+1}/10`;$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizCharacter').textContent=q.char;$('quizFeedback').textContent='';$('quizStatus').textContent='Pilih satu jawaban';$('quizNext').disabled=true;$('quizNext').textContent=quizIndex===9?'Lihat Hasil':'Berikutnya';const opts=shuffle([q.romaji,...shuffle(source.filter(x=>x[1]!==q.romaji)).slice(0,3).map(x=>x[1])]);$('quizOptions').innerHTML=opts.map(o=>`<button class="option-btn" data-answer="${o}">${o}</button>`).join('');document.querySelectorAll('#quizOptions button').forEach(b=>b.addEventListener('click',()=>{if(quizLocked)return;quizLocked=true;const ok=b.dataset.answer===q.romaji;if(ok)quizScore+=10;b.classList.add(ok?'correct':'wrong');if(!ok)document.querySelector(`#quizOptions [data-answer="${q.romaji}"]`).classList.add('correct');$('quizScore').textContent=`Nilai: ${quizScore}`;$('quizFeedback').textContent=ok?'Benar! +10 poin':`Jawaban yang benar adalah ${q.romaji}`;$('quizStatus').textContent=ok?'Jawaban benar':'Jawaban belum tepat';$('quizNext').disabled=false}))}
+function finishQuiz(){const h=getHistory();h.unshift({date:new Date().toLocaleString('id-ID'),score:quizScore,correct:quizScore/10,total:10,script:quizScript});writeStore('nihongo-history',h.slice(0,30));$('quizContent').classList.add('hidden');$('quizResult').classList.remove('hidden');$('quizResult').innerHTML=`<span class="eyebrow">HASIL KUIS ${quizScript.toUpperCase()}</span><h3>Kuis selesai!</h3><strong>${quizScore}/100</strong><p>Kamu menjawab benar ${quizScore/10} dari 10 soal ${quizScript}.</p><button class="btn primary" id="quizAgain">Ulangi Kuis</button> <button class="btn secondary" id="quizChoose">Pilih jenis huruf</button>`;$('quizAgain').addEventListener('click',()=>startQuiz(quizScript));$('quizChoose').addEventListener('click',()=>startQuiz());renderStats()}
+$('quizNext').addEventListener('click',()=>{if(quizIndex<9){quizIndex++;quizLocked=false;renderQuiz()}else finishQuiz()});
 $('startQuiz').addEventListener('click',()=>startQuiz());
 document.querySelectorAll('[data-quiz-script]').forEach(b=>b.addEventListener('click',()=>startQuiz(b.dataset.quizScript)));
 $('quizBack').addEventListener('click',()=>startQuiz());
 $('clearHistory').addEventListener('click',()=>{if(confirm('Hapus semua riwayat kuis?')){writeStore('nihongo-history',[]);renderStats()}});renderStats();
 
-// === Fitur tambahan: Kanji, favorit, speaking, sentence builder, JLPT N5, budaya, sertifikat ===
-const kanjiData=[
- {k:'日',on:'ニチ・ジツ',kun:'ひ・か',meaning:'hari / matahari',example:'日本 (にほん) — Jepang'},
- {k:'月',on:'ゲツ・ガツ',kun:'つき',meaning:'bulan',example:'月曜日 (げつようび) — Senin'},
- {k:'火',on:'カ',kun:'ひ',meaning:'api',example:'火山 (かざん) — gunung berapi'},
- {k:'水',on:'スイ',kun:'みず',meaning:'air',example:'水曜日 (すいようび) — Rabu'},
- {k:'木',on:'モク・ボク',kun:'き',meaning:'pohon / kayu',example:'木曜日 (もくようび) — Kamis'},
- {k:'金',on:'キン・コン',kun:'かね',meaning:'emas / uang',example:'お金 (おかね) — uang'},
- {k:'土',on:'ド・ト',kun:'つち',meaning:'tanah',example:'土曜日 (どようび) — Sabtu'},
- {k:'人',on:'ジン・ニン',kun:'ひと',meaning:'orang',example:'日本人 (にほんじん) — orang Jepang'},
- {k:'山',on:'サン',kun:'やま',meaning:'gunung',example:'富士山 (ふじさん) — Gunung Fuji'},
- {k:'川',on:'セン',kun:'かわ',meaning:'sungai',example:'川 (かわ) — sungai'},
- {k:'大',on:'ダイ・タイ',kun:'おお',meaning:'besar',example:'大学 (だいがく) — universitas'},
- {k:'小',on:'ショウ',kun:'ちい・こ',meaning:'kecil',example:'小さい (ちいさい) — kecil'},
- {k:'学',on:'ガク',kun:'まな',meaning:'belajar',example:'学生 (がくせい) — pelajar'},
- {k:'生',on:'セイ・ショウ',kun:'い・う',meaning:'hidup / lahir',example:'先生 (せんせい) — guru'},
- {k:'年',on:'ネン',kun:'とし',meaning:'tahun',example:'今年 (ことし) — tahun ini'},
- {k:'本',on:'ホン',kun:'もと',meaning:'buku / asal',example:'本 (ほん) — buku'}
+// Sentence builder: latihan dengan pilihan Hiragana atau Katakana.
+const sentenceBank=[
+ {meaning:'Saya minum air.',romaji:'Watashi wa mizu o nomimasu.',h:['わたし','は','みず','を','のみます'],k:['ワタシ','ハ','ミズ','ヲ','ノミマス'],why:'Pola kalimat dasar Jepang adalah Subjek + は + Objek + を + Kata kerja. は menandai topik, sedangkan を menandai objek.'},
+ {meaning:'Kucing makan ikan.',romaji:'Neko wa sakana o tabemasu.',h:['ねこ','は','さかな','を','たべます'],k:['ネコ','ハ','サカナ','ヲ','タベマス'],why:'ねこ (neko) berarti kucing, さかな (sakana) berarti ikan, dan たべます (tabemasu) berarti makan.'},
+ {meaning:'Saya pergi ke sekolah.',romaji:'Watashi wa gakkou e ikimasu.',h:['わたし','は','がっこう','へ','いきます'],k:['ワタシ','ハ','ガッコウ','ヘ','イキマス'],why:'へ (e) menunjukkan arah atau tujuan. がっこう berarti sekolah dan いきます berarti pergi.'},
+ {meaning:'Ini adalah buku.',romaji:'Kore wa hon desu.',h:['これ','は','ほん','です'],k:['コレ','ハ','ホン','デス'],why:'これ berarti ini, は menandai topik, dan です adalah bentuk sopan yang bermakna “adalah”.'}
 ];
-function renderKanji(){const q=$('kanjiSearch').value.trim().toLowerCase();const rows=kanjiData.filter(x=>[x.k,x.on,x.kun,x.meaning,x.example].join(' ').toLowerCase().includes(q));$('kanjiCount').textContent=`${rows.length} dari ${kanjiData.length} Kanji`; $('kanjiGrid').innerHTML=rows.map(x=>`<article class="kanji-card"><strong>${x.k}</strong><h3>${x.meaning}</h3><p><b>On:</b> ${x.on}</p><p><b>Kun:</b> ${x.kun}</p><small>${x.example}</small><button class="btn ghost small" data-kanji-say="${x.k}">🔊 Dengarkan</button></article>`).join('')||'<div class="empty-state">Kanji tidak ditemukan.</div>';document.querySelectorAll('[data-kanji-say]').forEach(b=>b.addEventListener('click',()=>speak(b.dataset.kanjiSay)))}
-$('kanjiSearch').addEventListener('input',renderKanji);renderKanji();
-function getFavorites(){return readStore('nihongo-favorites',[])}
-function isFavorite(word){return getFavorites().includes(word)}
-function toggleFavorite(word){let f=getFavorites();f=f.includes(word)?f.filter(x=>x!==word):[...f,word];writeStore('nihongo-favorites',f);renderVocab();renderFavorites()}
-function renderFavorites(){const f=getFavorites();const rows=vocab.filter(v=>f.includes(v[0]));$('favoriteGrid').innerHTML=rows.length?rows.map(v=>`<article class="vocab-card"><div><div class="jp">${escapeHTML(v[0])}</div><h3>${escapeHTML(v[2])}</h3><p>${escapeHTML(v[1])} · ${escapeHTML(v[3])}</p></div><div class="vocab-actions"><button data-fav-say="${escapeHTML(v[0])}">🔊</button><button data-fav-remove="${escapeHTML(v[0])}">★</button></div></article>`).join(''):'<div class="empty-state">Belum ada kosakata favorit. Tekan ☆ pada kartu kosakata untuk menyimpan.</div>';document.querySelectorAll('[data-fav-say]').forEach(b=>b.addEventListener('click',()=>speak(b.dataset.favSay)));document.querySelectorAll('[data-fav-remove]').forEach(b=>b.addEventListener('click',()=>toggleFavorite(b.dataset.favRemove)))}
-renderFavorites();
+function renderSentence(){const q=sentenceBank[sentenceIndex%sentenceBank.length];sentenceSelected=[];$('sentenceMeaning').textContent=`Susun kata berikut menjadi: ${q.meaning}`;$('sentenceFeedback').textContent='';$('sentenceAnswer').innerHTML='<span class="muted">Pilih potongan kata di bawah.</span>';const pieces=shuffle(sentenceScript==='hiragana'?q.h:q.k);$('sentencePieces').innerHTML=pieces.map((w,i)=>`<button class="option-btn sentence-piece" data-word="${w}" data-id="${i}">${w}</button>`).join('');document.querySelectorAll('.sentence-piece').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;b.disabled=true;sentenceSelected.push(b.dataset.word);renderSentenceAnswer()}))}
+function renderSentenceAnswer(){$('sentenceAnswer').innerHTML=sentenceSelected.length?sentenceSelected.map((w,i)=>`<button class="option-btn" data-remove="${i}">${w}</button>`).join(' '):'<span class="muted">Pilih potongan kata di bawah.</span>';document.querySelectorAll('[data-remove]').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.remove),word=sentenceSelected[i];sentenceSelected.splice(i,1);const piece=[...document.querySelectorAll('.sentence-piece')].find(x=>x.dataset.word===word&&x.disabled);if(piece)piece.disabled=false;renderSentenceAnswer()}))}
+$('sentenceScript').addEventListener('change',()=>{sentenceScript=$('sentenceScript').value;renderSentence()});
+$('openSentence').addEventListener('click',()=>{renderSentence();openPanel('sentencePanel')});
+$('resetSentence').addEventListener('click',renderSentence);
+$('nextSentence').addEventListener('click',()=>{sentenceIndex=(sentenceIndex+1)%sentenceBank.length;renderSentence()});
+$('checkSentence').addEventListener('click',()=>{const q=sentenceBank[sentenceIndex],correct=sentenceScript==='hiragana'?q.h:q.k;const ok=sentenceSelected.join('|')===correct.join('|');$('sentenceFeedback').textContent=ok?`Benar! ${q.romaji} — ${q.why}`:`Belum tepat. Jawaban yang benar: ${correct.join(' ')} (${q.romaji}). Penjelasan: ${q.why}`;$('sentenceFeedback').style.color=ok?'#16845b':'#c04b56'});
 
-const cultureData=[
- ['🍵','Upacara minum teh (茶道)','Sadō adalah tradisi penyajian dan menikmati teh matcha yang menekankan ketenangan, kesopanan, dan perhatian pada detail.'],
- ['🎎','Festival (祭り)','Matsuri adalah festival lokal yang sering diadakan di kuil atau lingkungan masyarakat. Beberapa festival memiliki parade, musik, dan pakaian tradisional.'],
- ['🍱','Budaya makanan','Makanan Jepang sering disajikan dengan memperhatikan keseimbangan rasa, warna, musim, dan tampilan. Contohnya sushi, ramen, dan bento.'],
- ['👞','Etika melepas sepatu','Di banyak rumah dan beberapa tempat tradisional, pengunjung melepas sepatu sebelum masuk. Perhatikan area genkan atau tempat masuk.'],
- ['🙇','Salam membungkuk (お辞儀)','Ojigi digunakan untuk menyapa, berterima kasih, atau meminta maaf. Kedalaman dan lamanya membungkuk bergantung pada situasi.'],
- ['🌸','Hanami (花見)','Hanami adalah kegiatan menikmati bunga sakura yang mekar, biasanya bersama keluarga atau teman saat musim semi.']
+// Simulasi JLPT N5: 10 soal, setiap soal bernilai 10 poin dan disertai pembahasan.
+const jlptBank=[
+ {q:'「みず」の arti adalah …',o:['Air','Api','Buku','Ikan'],a:0,e:'みず (mizu) berarti air.'},
+ {q:'「ねこ」 berarti …',o:['Anjing','Kucing','Burung','Kuda'],a:1,e:'ねこ (neko) berarti kucing. Anjing adalah いぬ (inu).'},
+ {q:'Pilih partikel untuk menandai topik: わたし ___ がくせいです。',o:['を','に','は','で'],a:2,e:'は (wa) menandai topik. Kalimatnya berarti “Saya adalah pelajar”.'},
+ {q:'「ありがとう」 digunakan untuk mengucapkan …',o:['Maaf','Terima kasih','Selamat pagi','Sampai jumpa'],a:1,e:'ありがとう (arigatou) berarti terima kasih.'},
+ {q:'Partikel を umumnya menandai …',o:['Objek tindakan','Topik','Waktu','Tempat asal'],a:0,e:'を (o) menandai objek langsung, misalnya みずをのみます (minum air).'},
+ {q:'「がっこう」 berarti …',o:['Rumah','Stasiun','Sekolah','Toko'],a:2,e:'がっこう (gakkou) berarti sekolah.'},
+ {q:'「おはよう」 adalah salam untuk …',o:['Pagi hari','Siang hari','Malam hari','Perpisahan'],a:0,e:'おはよう (ohayou) berarti selamat pagi.'},
+ {q:'Lengkapi: まいにち にほんごを ___。 (Setiap hari belajar bahasa Jepang)',o:['たべます','のみます','べんきょうします','いきます'],a:2,e:'べんきょうします (benkyou shimasu) berarti belajar.'},
+ {q:'「ほん」 berarti …',o:['Buku','Mobil','Jam','Telepon'],a:0,e:'ほん (hon) berarti buku.'},
+ {q:'Akhiran です biasanya digunakan untuk membuat kalimat …',o:['Kasar','Sopan','Perintah','Negatif saja'],a:1,e:'です (desu) adalah kopula yang umum dipakai dalam pernyataan sopan.'}
 ];
-$('cultureGrid').innerHTML=cultureData.map(c=>`<article class="culture-card"><div>${c[0]}</div><h3>${c[1]}</h3><p>${c[2]}</p></article>`).join('');
-
-// Latihan pengucapan: rekaman audio lokal melalui MediaRecorder (tidak ada penilaian otomatis).
-const speakingWords=[['こんにちは','konnichiwa · Halo'],['ありがとう','arigatou · Terima kasih'],['おはようございます','ohayou gozaimasu · Selamat pagi'],['すみません','sumimasen · Permisi / maaf'],['さようなら','sayounara · Selamat tinggal']];
-let speakingIndex=0,mediaRecorder=null,recordChunks=[],recordUrl=null;
-function renderSpeaking(){ $('pronunciationWord').textContent=speakingWords[speakingIndex][0];$('pronunciationRomaji').textContent=speakingWords[speakingIndex][1];$('recordStatus').textContent='Dengarkan contoh, lalu rekam pengucapanmu.';$('recordedAudio').classList.add('hidden');$('recordPlay').disabled=true }
-$('openPronunciation').addEventListener('click',()=>{openPanel('pronunciationPanel');renderSpeaking()});
-$('pronunciationSample').addEventListener('click',()=>speak(speakingWords[speakingIndex][0]));
-$('recordStart').addEventListener('click',async()=>{try{if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)throw new Error('Fitur rekam tidak didukung browser ini.');const stream=await navigator.mediaDevices.getUserMedia({audio:true});recordChunks=[];mediaRecorder=new MediaRecorder(stream);mediaRecorder.ondataavailable=e=>{if(e.data.size)recordChunks.push(e.data)};mediaRecorder.onstop=()=>{const blob=new Blob(recordChunks,{type:mediaRecorder.mimeType||'audio/webm'});if(recordUrl)URL.revokeObjectURL(recordUrl);recordUrl=URL.createObjectURL(blob);$('recordedAudio').src=recordUrl;$('recordedAudio').classList.remove('hidden');$('recordPlay').disabled=false;stream.getTracks().forEach(t=>t.stop());$('recordStatus').textContent='Rekaman siap diputar. Dengarkan dan coba ulangi bila perlu.'};mediaRecorder.start();$('recordStart').disabled=true;$('recordStop').disabled=false;$('recordStatus').textContent='Sedang merekam... Ucapkan kata Jepang dengan jelas.'}catch(err){$('recordStatus').textContent=err.message||'Tidak dapat mengakses mikrofon. Periksa izin browser.'}});
-$('recordStop').addEventListener('click',()=>{if(mediaRecorder?.state==='recording'){mediaRecorder.stop();$('recordStart').disabled=false;$('recordStop').disabled=true}});
-$('recordPlay').addEventListener('click',()=>$('recordedAudio').play());
-$('recordNext').addEventListener('click',()=>{speakingIndex=(speakingIndex+1)%speakingWords.length;renderSpeaking()});
-
-// Susun kalimat: pilih potongan kata hingga membentuk urutan yang tepat.
-const sentenceData=[
- {meaning:'Saya minum air.',parts:['水','を','飲みます','。'],answer:['水','を','飲みます','。'],hint:'Mizu o nomimasu.'},
- {meaning:'Saya adalah pelajar.',parts:['学生','です','。','私は'],answer:['私は','学生','です','。'],hint:'Watashi wa gakusei desu.'},
- {meaning:'Kucing ada.',parts:['います','猫','が','。'],answer:['猫','が','います','。'],hint:'Neko ga imasu.'},
- {meaning:'Saya pergi ke sekolah.',parts:['学校','行きます','に','。','私は'],answer:['私は','学校','に','行きます','。'],hint:'Watashi wa gakkou ni ikimasu.'}
-];
-let sentenceIndex=0,sentencePicked=[];
-function renderSentence(){const s=sentenceData[sentenceIndex];sentencePicked=[];$('sentenceMeaning').textContent=`Susun kata berikut menjadi: ${s.meaning}`;$('sentenceAnswer').innerHTML='<span class="muted">Pilih potongan kata di bawah.</span>';$('sentencePieces').innerHTML=shuffle(s.parts.map((x,i)=>({x,id:i}))).map(o=>`<button class="sentence-piece" data-piece="${o.id}">${o.x}</button>`).join('');$('sentenceFeedback').textContent='';document.querySelectorAll('[data-piece]').forEach(b=>b.addEventListener('click',()=>{const id=Number(b.dataset.piece);if(b.disabled)return;b.disabled=true;sentencePicked.push({id,text:b.textContent});$('sentenceAnswer').textContent=sentencePicked.map(x=>x.text).join('');}))}
-$('openSentence').addEventListener('click',()=>{openPanel('sentencePanel');renderSentence()});
-$('checkSentence').addEventListener('click',()=>{const s=sentenceData[sentenceIndex];const ok=sentencePicked.map(x=>x.text).join('')===s.answer.join('');$('sentenceFeedback').textContent=ok?`Benar! ${s.hint}`:`Belum tepat. Coba susun kembali urutan kalimatnya.`;$('sentenceFeedback').style.color=ok?'var(--green)':'var(--red)'});
-$('resetSentence').addEventListener('click',renderSentence);$('nextSentence').addEventListener('click',()=>{sentenceIndex=(sentenceIndex+1)%sentenceData.length;renderSentence()});
-
-// Simulasi latihan JLPT N5 (soal latihan buatan, bukan soal resmi).
-const jlptQuestions=[
- {q:'「みず」の意味は何ですか。',o:['Air','Api','Buku','Gunung'],a:0},
- {q:'「ねこ」はどれですか。',o:['Anjing','Kucing','Burung','Ikan'],a:1},
- {q:'わたし ___ 学生です。',o:['を','に','は','で'],a:2},
- {q:'「ありがとう」の意味は？',o:['Maaf','Terima kasih','Selamat pagi','Sampai jumpa'],a:1},
- {q:'学校へ ___。 (pergi)',o:['行きます','飲みます','食べます','見ます'],a:0},
- {q:'「先生」は何ですか。',o:['Dokter','Guru','Teman','Siswa'],a:1},
- {q:'七時 ___ 起きます。',o:['を','が','に','は'],a:2},
- {q:'「大きい」の反対は？',o:['新しい','小さい','高い','長い'],a:1},
- {q:'本を ___。 (membaca)',o:['読みます','書きます','聞きます','話します'],a:0},
- {q:'「月曜日」は何曜日ですか。',o:['Senin','Selasa','Rabu','Minggu'],a:0}
-];
-let jlptIndex=0,jlptCorrect=0,jlptLocked=false;
+function beginJLPT(){jlptQuestions=shuffle(jlptBank);jlptIndex=0;jlptCorrect=0;jlptLocked=false;$('jlptIntro').classList.add('hidden');$('jlptResult').classList.add('hidden');$('jlptQuiz').classList.remove('hidden');renderJLPT()}
+function renderJLPT(){const q=jlptQuestions[jlptIndex];$('jlptCounter').textContent=`Soal ${jlptIndex+1}/10`;$('jlptScore').textContent=`Benar: ${jlptCorrect} · Nilai sementara: ${jlptCorrect*10}`;$('jlptQuestion').textContent=q.q;$('jlptFeedback').textContent='';$('jlptNext').disabled=true;$('jlptNext').textContent=jlptIndex===9?'Lihat Nilai':'Berikutnya';$('jlptOptions').innerHTML=q.o.map((v,i)=>`<button class="option-btn" data-jlpt="${i}">${v}</button>`).join('');document.querySelectorAll('[data-jlpt]').forEach(b=>b.addEventListener('click',()=>{if(jlptLocked)return;jlptLocked=true;const selected=Number(b.dataset.jlpt),ok=selected===q.a;if(ok)jlptCorrect++;b.classList.add(ok?'correct':'wrong');document.querySelector(`[data-jlpt="${q.a}"]`).classList.add('correct');$('jlptScore').textContent=`Benar: ${jlptCorrect} · Nilai sementara: ${jlptCorrect*10}`;$('jlptFeedback').textContent=`${ok?'Benar!':'Jawaban belum tepat.'} ${q.e}`;$('jlptNext').disabled=false}))}
+function finishJLPT(){const score=jlptCorrect*10;const history=getHistory();history.unshift({date:new Date().toLocaleString('id-ID'),score,correct:jlptCorrect,total:10,script:'JLPT N5'});writeStore('nihongo-history',history.slice(0,30));$('jlptQuiz').classList.add('hidden');$('jlptResult').classList.remove('hidden');$('jlptResult').innerHTML=`<span class="eyebrow">HASIL SIMULASI JLPT N5</span><h3>Latihan selesai!</h3><strong>${score}/100</strong><p>Jawaban benar: ${jlptCorrect} dari 10 soal.</p><p>${score>=70?'Bagus! Kamu mencapai nilai latihan 70 atau lebih.': 'Terus berlatih dan pelajari kembali pembahasan setiap soal.'}</p><button class="btn primary" id="jlptRetry">Ulangi 10 Soal</button>`;$('jlptRetry').addEventListener('click',beginJLPT);renderStats()}
 $('openJLPT').addEventListener('click',()=>{openPanel('jlptPanel');$('jlptIntro').classList.remove('hidden');$('jlptQuiz').classList.add('hidden');$('jlptResult').classList.add('hidden')});
-$('jlptBegin').addEventListener('click',()=>{jlptIndex=0;jlptCorrect=0;renderJLPT();$('jlptIntro').classList.add('hidden');$('jlptQuiz').classList.remove('hidden');$('jlptResult').classList.add('hidden')});
-function renderJLPT(){const q=jlptQuestions[jlptIndex];jlptLocked=false;$('jlptCounter').textContent=`Soal ${jlptIndex+1}/10`;$('jlptScore').textContent=`Benar: ${jlptCorrect}`;$('jlptQuestion').textContent=q.q;$('jlptFeedback').textContent='';$('jlptNext').disabled=true;$('jlptNext').textContent=jlptIndex===9?'Lihat Hasil':'Berikutnya';$('jlptOptions').innerHTML=q.o.map((x,i)=>`<button class="option-btn" data-jlpt="${i}">${x}</button>`).join('');document.querySelectorAll('[data-jlpt]').forEach(b=>b.addEventListener('click',()=>{if(jlptLocked)return;jlptLocked=true;const ok=Number(b.dataset.jlpt)===q.a;if(ok)jlptCorrect++;b.classList.add(ok?'correct':'wrong');document.querySelector(`[data-jlpt="${q.a}"]`).classList.add('correct');$('jlptScore').textContent=`Benar: ${jlptCorrect}`;$('jlptFeedback').textContent=ok?'Benar!':'Jawaban benar: '+q.o[q.a];$('jlptNext').disabled=false}))}
-$('jlptNext').addEventListener('click',()=>{if(jlptIndex<9){jlptIndex++;renderJLPT()}else finishJLPT()});
-function finishJLPT(){const score=jlptCorrect*10;writeStore('nihongo-jlpt-last',{score,date:new Date().toLocaleDateString('id-ID'),passed:score>=70});$('jlptQuiz').classList.add('hidden');$('jlptResult').classList.remove('hidden');$('jlptResult').innerHTML=`<span class="eyebrow">HASIL SIMULASI N5</span><h3>${score>=70?'Selamat, latihan berhasil!':'Terus berlatih!'}</h3><strong>${score}/100</strong><p>Jawaban benar ${jlptCorrect} dari 10 soal. ${score>=70?'Kamu memenuhi syarat latihan untuk mencetak sertifikat penyelesaian.':'Butuh nilai minimal 70 untuk membuka sertifikat latihan.'}</p>${score>=70?'<button class="btn primary" id="printCertificate">Cetak Sertifikat</button>':''} <button class="btn secondary" id="retryJLPT">Ulangi Simulasi</button>`;if(score>=70)$('printCertificate').addEventListener('click',printCertificate);$('retryJLPT').addEventListener('click',()=>$('jlptBegin').click())}
-function printCertificate(){const last=readStore('nihongo-jlpt-last',{});const w=window.open('','_blank','width=900,height=700');if(!w){alert('Izinkan pop-up browser untuk mencetak sertifikat.');return}w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Sertifikat Nihongo</title><style>body{font-family:Georgia,serif;background:#f5f1ff;padding:40px;color:#28213d}.cert{background:white;border:12px double #725bd8;padding:55px;text-align:center;max-width:760px;margin:auto}.jp{font-size:38px;color:#725bd8}.title{font-size:34px;letter-spacing:3px}.name{font-size:28px;border-bottom:1px solid #999;display:inline-block;padding:10px 50px}.muted{color:#666}button{padding:10px 20px;margin-top:25px}@media print{button{display:none}body{background:white}}</style></head><body><div class="cert"><div class="jp">日本語 · NIHONGO</div><h1 class="title">SERTIFIKAT PENYELESAIAN</h1><p>Diberikan kepada</p><p class="name">Peserta Japanese Learning</p><p>atas keberhasilan menyelesaikan Simulasi Latihan JLPT N5</p><h2>Nilai: ${last.score}/100</h2><p class="muted">Tanggal: ${last.date||new Date().toLocaleDateString('id-ID')}</p><p>がんばりました！ Terus semangat belajar.</p><button onclick="window.print()">Cetak / Simpan PDF</button></div></body></html>`);w.document.close()}
+$('jlptBegin').addEventListener('click',beginJLPT);
+$('jlptNext').addEventListener('click',()=>{if(jlptIndex<9){jlptIndex++;jlptLocked=false;renderJLPT()}else finishJLPT()});
 
 // Small local assistant. It is rule-based, not a connected generative AI service.
 function botReply(raw){const q=raw.toLowerCase();if(/hiragana/.test(q))return 'Hiragana adalah salah satu sistem huruf Jepang yang umum dipakai untuk kata asli Jepang dan akhiran tata bahasa. Buka bagian “Huruf”, pilih tab Hiragana, lalu gunakan flashcard untuk menghafal.';
@@ -219,13 +174,7 @@ if(/menulis|writing|gambar huruf/.test(q))return 'Pilih “Latihan Menulis Huruf
 if(/timer|waktu belajar/.test(q))return 'Timer berada di bagian atas halaman. Tekan Mulai saat belajar dan Jeda ketika selesai sementara. Waktu yang tercatat akan menambah progres target harian.';
 if(/target|harian/.test(q))return 'Atur target dalam menit pada kartu Target Harian, lalu tekan Simpan. Gunakan timer belajar agar durasi belajarmu tercatat.';
 if(/kamus|arti|terjemah|cari kata/.test(q))return 'Kamus mini ada di bagian bawah halaman. Cari menggunakan tulisan Jepang, romaji, atau arti bahasa Indonesia.';
-if(/kanji/.test(q))return 'Materi Kanji dasar tersedia pada bagian Belajar Kanji, lengkap dengan arti, cara baca, dan contoh.';
-if(/jlpt|ujian n5/.test(q))return 'Buka Area Latihan lalu pilih Simulasi JLPT N5. Tersedia 10 soal latihan kosakata dan tata bahasa tingkat pemula.';
-if(/budaya|tradisi jepang/.test(q))return 'Buka Ensiklopedia Budaya Jepang untuk membaca tentang etika, makanan, festival, dan kebiasaan di Jepang.';
-if(/favorit/.test(q))return 'Tekan ikon bintang pada kartu kosakata untuk menyimpannya. Daftar tersimpan ada di bagian Kosakata Favorit.';
-if(/pengucapan|rekam suara|speaking/.test(q))return 'Buka Latihan Pengucapan di Area Latihan. Dengarkan contoh, izinkan mikrofon, lalu rekam dan putar suaramu.';
-if(/susun kalimat/.test(q))return 'Buka Susun Kalimat pada Area Latihan, lalu tekan potongan kata sesuai urutan kalimat yang benar.';
-if(/fitur|website|web ini|menu/.test(q))return 'Fitur website ini meliputi Hiragana/Katakana, flashcard, kosakata, Kanji, tata bahasa, listening, latihan menulis dan pengucapan, susun kalimat, JLPT N5, favorit, budaya Jepang, kuis, kamus, timer, target harian, statistik, dan dark mode.';
+if(/fitur|website|web ini|menu/.test(q))return 'Fitur website ini meliputi huruf Hiragana/Katakana, flashcard, kosakata, tata bahasa dasar, listening test, latihan menulis, game mencocokkan, kuis, kamus mini, kata harian, timer, target harian, statistik, riwayat, dan mode gelap.';
 if(/halo|hai|hello|こんにちは/.test(q))return 'こんにちは！ Senang bertemu denganmu. Mau belajar huruf, kosakata, tata bahasa, atau mencoba latihan?';
 if(/terima kasih|arigatou/.test(q))return 'どういたしまして (dou itashimashite) — sama-sama! Tetap semangat belajar bahasa Jepang.';
 if(/siapa|kamu/.test(q))return 'Aku Asisten Nihongo, chatbot mini yang membantu menjelaskan fitur website dan materi dasar bahasa Jepang.';
